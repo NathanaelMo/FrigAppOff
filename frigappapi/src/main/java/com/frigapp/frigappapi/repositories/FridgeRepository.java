@@ -22,22 +22,17 @@ public class FridgeRepository {
     // ── Requêtes SQL ─────────────────────────────────────────────────────────
 
     private static final String FIND_BY_ID = """
-            SELECT
-                f.id, f.name, f.owner_id, f.created_at, f.updated_at,
-                fm.role,
-                COUNT(DISTINCT fi.id)  AS item_count,
-                COUNT(DISTINCT fm2.id) AS member_count,
-                COUNT(DISTINCT fi2.id) FILTER (
-                    WHERE fi2.expiry_date <= CURRENT_DATE + INTERVAL '3 days'
-                ) AS urgent_count
-            FROM fridges f
-            JOIN fridge_members fm  ON fm.fridge_id = f.id
-            JOIN fridge_members fm2 ON fm2.fridge_id = f.id
-            LEFT JOIN fridge_items fi  ON fi.fridge_id = f.id
-            LEFT JOIN fridge_items fi2 ON fi2.fridge_id = f.id
-            WHERE f.id = :fridgeId
-            GROUP BY f.id, f.name, f.owner_id, f.created_at, f.updated_at, fm.role
-            """;
+        SELECT 
+            f.id, f.name, f.owner_id, f.created_at, f.updated_at,
+            (SELECT role FROM fridge_members WHERE fridge_id = f.id AND user_id = f.owner_id LIMIT 1) as role,
+            (SELECT COUNT(*) FROM fridge_items WHERE fridge_id = f.id) AS item_count,
+            (SELECT COUNT(*) FROM fridge_members WHERE fridge_id = f.id) AS member_count,
+            (SELECT COUNT(*) FROM fridge_items 
+             WHERE fridge_id = f.id 
+             AND expiry_date <= CURRENT_DATE + INTERVAL '3 days') AS urgent_count
+        FROM fridges f
+        WHERE f.id = :fridgeId
+        """;
 
     private static final String FIND_ALL_BY_USER_ID = """
             SELECT
