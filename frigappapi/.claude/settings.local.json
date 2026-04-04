@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/monni/ClaudeCode/Test_1/FrigApp/API_Backend/frigappapi/src -type f -name *.java)"
+    ]
+  }
+}

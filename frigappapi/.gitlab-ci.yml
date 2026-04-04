@@ -1,0 +1,45 @@
+stages:
+  - build
+  - test
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  # Variables pour les tests (valeurs fictives, juste pour que le contexte Spring démarre)
+  DB_URL: "jdbc:tc:postgresql:17:///frigapp"
+  DB_USERNAME: "test"
+  DB_PASSWORD: "test"
+  JWT_SECRET: "dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBmcmlnYXBwMjAyNg=="
+  JWT_EXPIRATION_MS: "86400000"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .gradle/
+
+build:
+  stage: build
+  image: eclipse-temurin:17-jdk
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 hour
+
+test:
+  stage: test
+  image: eclipse-temurin:17-jdk-jammy  # image avec Docker disponible
+  services:
+    - docker:dind                        # Docker-in-Docker pour Testcontainers
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_RYUK_DISABLED: "true" # évite les problèmes de permissions CI
+  script:
+    - ./gradlew test
+  artifacts:
+    when: always
+    reports:
+      junit: build/test-results/test/**/TEST-*.xml
+    expire_in: 1 week

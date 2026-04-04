@@ -1,0 +1,1043 @@
+openapi: 3.0.3
+
+info:
+  title: Frig'App API
+  description: |
+    API REST de Frig'App — application mobile de gestion de stock de frigo collaboratif.
+    
+    ## Authentification
+    Toutes les routes protégées nécessitent un token JWT passé dans le header `Authorization: Bearer <token>`.
+    
+    ## Temps réel
+    Les modifications sur les items et les membres sont diffusées via WebSocket (STOMP over SockJS) sur `ws://api.frigapp.com/v1/ws`.
+    
+    ## Conventions
+    - Toutes les réponses sont enveloppées dans `{ "status": "success"|"error", "data": ... }`
+    - Les identifiants sont des UUID v4
+    - Les timestamps sont en ISO 8601 UTC
+  version: 1.0.0
+  contact:
+    name: Équipe Frig'App
+
+servers:
+  - url: https://api.frigapp.com/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Développement local (Spring Boot)
+
+tags:
+  - name: Auth
+    description: Inscription, connexion et gestion du token JWT
+  - name: Fridges
+    description: Création et gestion des frigos
+  - name: Members
+    description: Gestion des collaborateurs d'un frigo
+  - name: Products
+    description: Référentiel produits (Open Food Facts)
+  - name: Items
+    description: Gestion des items dans un frigo
+
+# ── SECURITY ──────────────────────────────────────────────────────────────────
+
+security: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ── SCHEMAS ─────────────────────────────────────────────────────────────────
+
+  schemas:
+
+    # Enveloppes génériques
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+          example: success
+        data:
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: error
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: FRIDGE_NOT_FOUND
+            message:
+              type: string
+              example: Le frigo demandé n'existe pas.
+
+    # ── USER ──────────────────────────────────────────────────────────────────
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        firstName:
+          type: string
+          example: Nathanaël
+        email:
+          type: string
+          format: email
+          example: nathanael@email.com
+
+    UserFull:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+              example: 2026-03-23T10:00:00Z
+
+    # ── AUTH ──────────────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [firstName, email, password]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Nathanaël
+        email:
+          type: string
+          format: email
+          example: nathanael@email.com
+        password:
+          type: string
+          minLength: 8
+          example: motdepasse123
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: nathanael@email.com
+        password:
+          type: string
+          example: motdepasse123
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    # ── FRIDGE ────────────────────────────────────────────────────────────────
+
+    FridgeRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Frigo maison
+
+    FridgeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        name:
+          type: string
+          example: Frigo maison
+        role:
+          type: string
+          enum: [owner, collaborator]
+          example: owner
+        itemCount:
+          type: integer
+          example: 12
+        memberCount:
+          type: integer
+          example: 3
+        urgentCount:
+          type: integer
+          description: Nombre de produits expirant dans les 3 prochains jours
+          example: 2
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2026-03-23T09:00:00Z
+
+    FridgeFull:
+      allOf:
+        - $ref: '#/components/schemas/FridgeSummary'
+        - type: object
+          properties:
+            ownerId:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+
+    # ── MEMBER ────────────────────────────────────────────────────────────────
+
+    MemberSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          example: Thomas
+        email:
+          type: string
+          format: email
+          example: thomas@email.com
+        role:
+          type: string
+          enum: [owner, collaborator]
+          example: collaborator
+        joinedAt:
+          type: string
+          format: date-time
+
+    InviteMemberRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: thomas@email.com
+
+    # ── PRODUCT ───────────────────────────────────────────────────────────────
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        barcode:
+          type: string
+          example: "3017620422003"
+        name:
+          type: string
+          example: Nutella
+        brand:
+          type: string
+          nullable: true
+          example: Ferrero
+        category:
+          type: string
+          nullable: true
+          example: Pâtes à tartiner
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://images.openfoodfacts.org/images/products/301/762/042/2003/front.jpg
+        source:
+          type: string
+          enum: [open_food_facts, manual]
+          example: open_food_facts
+        suggestedExpiryDays:
+          type: integer
+          nullable: true
+          description: Durée de conservation suggérée en jours selon la catégorie
+          example: 365
+
+    CreateProductRequest:
+      type: object
+      required: [barcode, name]
+      properties:
+        barcode:
+          type: string
+          example: "1234567890123"
+        name:
+          type: string
+          example: Mon produit
+        brand:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+
+    # ── FRIDGE ITEM ───────────────────────────────────────────────────────────
+
+    FridgeItemRequest:
+      type: object
+      required: [productId, quantity, expiryDate]
+      properties:
+        productId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440002
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+        expiryDate:
+          type: string
+          format: date
+          example: "2026-04-05"
+
+    FridgeItemUpdateRequest:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        expiryDate:
+          type: string
+          format: date
+          example: "2026-04-10"
+
+    FridgeItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              example: Lait entier
+            brand:
+              type: string
+              nullable: true
+              example: Lactel
+            imageUrl:
+              type: string
+              format: uri
+              nullable: true
+        quantity:
+          type: integer
+          example: 1
+        expiryDate:
+          type: string
+          format: date
+          example: "2026-03-25"
+        urgent:
+          type: boolean
+          description: true si le produit expire dans 3 jours ou moins
+          example: true
+        daysUntilExpiry:
+          type: integer
+          description: Négatif si déjà expiré
+          example: 2
+        addedBy:
+          $ref: '#/components/schemas/UserSummary'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+  # ── RESPONSES ────────────────────────────────────────────────────────────────
+
+  responses:
+    Unauthorized:
+      description: Token JWT absent ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            error:
+              code: UNAUTHORIZED
+              message: Token JWT absent ou invalide.
+
+    Forbidden:
+      description: Action non autorisée pour ce rôle
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            error:
+              code: FORBIDDEN
+              message: Vous n'avez pas les droits pour effectuer cette action.
+
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Conflit (doublon)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    BadRequest:
+      description: Données invalides
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+# ── PATHS ─────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Créer un compte
+      description: Inscrit un nouvel utilisateur. Retourne le profil créé.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Compte créé avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserFull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email déjà utilisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: error
+                error:
+                  code: EMAIL_ALREADY_EXISTS
+                  message: Un compte existe déjà avec cet email.
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Connexion
+      description: Authentifie un utilisateur et retourne un token JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Identifiants incorrects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: error
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Email ou mot de passe incorrect.
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rafraîchir le token
+      description: Génère un nouveau token JWT à partir d'un token valide.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token renouvelé
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── FRIDGES ───────────────────────────────────────────────────────────────
+
+  /fridges:
+    get:
+      tags: [Fridges]
+      summary: Lister mes frigos
+      description: Retourne tous les frigos auxquels l'utilisateur appartient (possédés + collaborations).
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des frigos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FridgeSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Fridges]
+      summary: Créer un frigo
+      description: Crée un nouveau frigo. L'utilisateur courant devient automatiquement propriétaire.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FridgeRequest'
+      responses:
+        '201':
+          description: Frigo créé
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FridgeFull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /fridges/{fridgeId}:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Identifiant du frigo
+
+    get:
+      tags: [Fridges]
+      summary: Détail d'un frigo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Détail du frigo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FridgeFull'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Fridges]
+      summary: Renommer un frigo
+      description: Réservé au propriétaire du frigo.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FridgeRequest'
+      responses:
+        '200':
+          description: Frigo renommé
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FridgeFull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Fridges]
+      summary: Supprimer un frigo
+      description: Supprime le frigo et toutes ses données en cascade. Réservé au propriétaire.
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Frigo supprimé
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /fridges/{fridgeId}/leave:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Fridges]
+      summary: Quitter un frigo
+      description: Retire l'utilisateur courant des membres du frigo. Réservé aux collaborateurs.
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Frigo quitté
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Le propriétaire ne peut pas quitter son propre frigo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── MEMBERS ───────────────────────────────────────────────────────────────
+
+  /fridges/{fridgeId}/members:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Members]
+      summary: Lister les membres
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des membres
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MemberSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /fridges/{fridgeId}/members/invite:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Members]
+      summary: Inviter un membre
+      description: Invite un utilisateur existant par email. Réservé au propriétaire.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteMemberRequest'
+      responses:
+        '201':
+          description: Membre ajouté
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MemberSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Utilisateur introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: error
+                error:
+                  code: USER_NOT_FOUND
+                  message: Aucun compte trouvé avec cet email.
+        '409':
+          description: Déjà membre
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: error
+                error:
+                  code: ALREADY_MEMBER
+                  message: Cet utilisateur est déjà membre de ce frigo.
+
+  /fridges/{fridgeId}/members/{userId}:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Members]
+      summary: Retirer un membre
+      description: Retire un collaborateur du frigo. Réservé au propriétaire.
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Membre retiré
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── PRODUCTS ──────────────────────────────────────────────────────────────
+
+  /products/barcode/{barcode}:
+    parameters:
+      - name: barcode
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Code-barres EAN-13
+        example: "3017620422003"
+    get:
+      tags: [Products]
+      summary: Rechercher un produit par code-barres
+      description: Cherche dans la base locale, puis sur Open Food Facts si introuvable. Met le résultat en cache.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Produit trouvé
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Produit introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: error
+                error:
+                  code: PRODUCT_NOT_FOUND
+                  message: Produit introuvable localement et sur Open Food Facts.
+        '502':
+          description: Erreur Open Food Facts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products:
+    post:
+      tags: [Products]
+      summary: Créer un produit manuellement
+      description: Crée un produit dans le référentiel local quand le scan ne donne aucun résultat.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Produit créé
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Code-barres déjà existant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── ITEMS ─────────────────────────────────────────────────────────────────
+
+  /fridges/{fridgeId}/items:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Items]
+      summary: Lister les items du frigo
+      description: Retourne les items triés par date de péremption. Inclut un flag urgent pour les produits expirant dans 3 jours ou moins.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [expiry_asc, expiry_desc, name_asc]
+            default: expiry_asc
+          description: Ordre de tri
+      responses:
+        '200':
+          description: Liste des items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FridgeItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Items]
+      summary: Ajouter un item au frigo
+      description: Ajoute un produit au frigo. Déclenche une notification WebSocket ITEM_ADDED à tous les membres.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FridgeItemRequest'
+      responses:
+        '201':
+          description: Item ajouté
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FridgeItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /fridges/{fridgeId}/items/{itemId}:
+    parameters:
+      - name: fridgeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    put:
+      tags: [Items]
+      summary: Modifier un item
+      description: Modifie la DLC et/ou la quantité. Déclenche une notification WebSocket ITEM_UPDATED.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FridgeItemUpdateRequest'
+      responses:
+        '200':
+          description: Item modifié
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FridgeItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Items]
+      summary: Supprimer un item
+      description: Retire un item du frigo. Déclenche une notification WebSocket ITEM_DELETED.
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Item supprimé
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
