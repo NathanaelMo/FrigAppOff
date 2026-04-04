@@ -1,0 +1,27 @@
+# On utilise le tag 'latest' qui est généralement le mieux maintenu
+image: mobiledevops/android-sdk-image:latest
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+stages:
+  - build
+
+build_job:
+  stage: build
+  before_script:
+    - chmod +x ./gradlew
+    # On force l'acceptation des licences au cas où l'image soit "nue"
+    - yes | sdkmanager --licenses || true
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+      - app/build/outputs/apk/debug/*.apk
+    expire_in: 1 week
