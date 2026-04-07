@@ -5,11 +5,9 @@ import com.frigapp.frigappapi.model.FridgeItemProduct;
 import com.frigapp.frigappapi.model.UserSummary;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.net.URI;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -161,14 +159,8 @@ public class ItemsRepository {
         FridgeItemProduct product = new FridgeItemProduct();
         product.setId(UUID.fromString(rs.getString("product_id")));
         product.setName(rs.getString("product_name"));
-        product.setBrand(JsonNullable.of(rs.getString("brand")));
-        String imageUrlStr = rs.getString("image_url");
-        if (imageUrlStr != null) {
-            try { product.setImageUrl(JsonNullable.of(new URI(imageUrlStr))); }
-            catch (Exception ignored) { product.setImageUrl(JsonNullable.undefined()); }
-        } else {
-            product.setImageUrl(JsonNullable.undefined());
-        }
+        product.setBrand(rs.getString("brand"));
+        product.setImageUrl(rs.getString("image_url"));
 
         // Ajouté par
         UserSummary addedBy = new UserSummary();
