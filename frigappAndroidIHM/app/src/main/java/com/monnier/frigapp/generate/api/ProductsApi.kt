@@ -8,6 +8,7 @@ import retrofit2.Response
 
 
 interface ProductsApi {
+
     /**
      * Rechercher un produit par code-barres
      * Cherche dans la base locale, puis sur Open Food Facts si introuvable. Met le résultat en cache.

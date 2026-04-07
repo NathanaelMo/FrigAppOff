@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.monnier.frigapp.ui.viewmodels.FridgeItemDisplay
 import com.monnier.frigapp.ui.viewmodels.FridgeViewModel
 
@@ -113,6 +115,7 @@ fun FridgeScreen(
                                         name = product.name,
                                         subtitle = if(product.daysRemaining < 0) "Expiré !" else "Dans ${product.daysRemaining} jours",
                                         date = "×${product.quantity}",
+                                        imageUrl = product.imageUrl,
                                         statusColor = if(product.daysRemaining < 0) Color.Black else Color(0xFFD03D2F),
                                         isExpanded = expandedProductId == product.id,
                                         onClick = { expandedProductId = if (expandedProductId == product.id) null else product.id },
@@ -135,6 +138,7 @@ fun FridgeScreen(
                                         name = product.name,
                                         subtitle = "×${product.quantity}${if (product.brand != null) " · ${product.brand}" else ""}",
                                         date = "${product.daysRemaining}j",
+                                        imageUrl = product.imageUrl,
                                         statusColor = Color(0xFF2EAA84),
                                         isExpanded = expandedProductId == product.id,
                                         onClick = { expandedProductId = if (expandedProductId == product.id) null else product.id },
@@ -192,6 +196,7 @@ fun ExpandableProductRow(
     name: String,
     subtitle: String,
     date: String,
+    imageUrl: String?,
     statusColor: Color,
     isExpanded: Boolean,
     onClick: () -> Unit,
@@ -209,7 +214,7 @@ fun ExpandableProductRow(
             .clickable { onClick() }
     ) {
         // Ligne de produit classique
-        ProductRow(name, subtitle, date, statusColor)
+        ProductRow(name, subtitle, date, imageUrl, statusColor)
 
         // Boutons d'actions (visibles uniquement si étendu)
         if (isExpanded) {
@@ -271,16 +276,28 @@ fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector?, title:
 }
 
 @Composable
-fun ProductRow(name: String, subtitle: String, date: String, statusColor: Color) {
+fun ProductRow(name: String, subtitle: String, date: String, imageUrl: String?, statusColor: Color) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(40.dp).background(Color(0xFFF8F9FA), CircleShape),
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFF8F9FA)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Kitchen, null, tint = Color.DarkGray, modifier = Modifier.size(20.dp))
+            if (!imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(Icons.Default.Kitchen, null, tint = Color.DarkGray, modifier = Modifier.size(22.dp))
+            }
         }
 
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {

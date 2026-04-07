@@ -107,7 +107,11 @@ fun EditProductScreen(
                                 Icon(Icons.Default.DateRange, contentDescription = "Calendrier")
                             }
                         },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2EAA84))
+                        colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF2EAA84),
+                        focusedTextColor = Color(0xFF1C1B1F),
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
                     )
                 }
 

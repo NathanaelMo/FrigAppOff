@@ -8,6 +8,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.monnier.frigapp.FrigApplication
 import com.monnier.frigapp.data.repository.FridgeResult
+import com.monnier.frigapp.data.repository.MembersResult
+import com.monnier.frigapp.generate.model.MemberSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -24,7 +26,8 @@ import java.util.UUID
  */
 class FridgeSettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val fridgeRepository = (application as FrigApplication).fridgeRepository
+    private val fridgeRepository   = (application as FrigApplication).fridgeRepository
+    private val membersRepository  = (application as FrigApplication).membersRepository
 
     // ─── États ───────────────────────────────────────────────────────────────
 
@@ -37,6 +40,10 @@ class FridgeSettingsViewModel(application: Application) : AndroidViewModel(appli
 
     var isLoading    by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
+
+    /** Liste des membres du frigo — utilisée pour calculer le rôle réel de l'utilisateur. */
+    private val _members = MutableStateFlow<List<MemberSummary>>(emptyList())
+    val members = _members.asStateFlow()
 
     /** true = opération destructive en cours (delete/leave) → affiche un dialog. */
     private val _showConfirmDialog = MutableStateFlow(false)
@@ -64,6 +71,12 @@ class FridgeSettingsViewModel(application: Application) : AndroidViewModel(appli
                     userRole   = result.data.role?.value ?: "collaborator"
                 }
                 is FridgeResult.Error -> errorMessage = result.message
+            }
+
+            // Chargement des membres pour déterminer le rôle réel de l'utilisateur
+            when (val result = membersRepository.getMembers(uuid)) {
+                is MembersResult.Success -> _members.value = result.data
+                is MembersResult.Error   -> { /* non bloquant : le rôle fallback reste disponible */ }
             }
 
             isLoading = false

@@ -87,7 +87,11 @@ fun RegisterScreen(
                                 onValueChange = { viewModel.name = it },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                enabled = !viewModel.isLoading
+                                enabled = !viewModel.isLoading,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color(0xFF1C1B1F),
+                                    unfocusedTextColor = Color(0xFF1C1B1F)
+                                )
                             )
                         }
 
@@ -100,7 +104,11 @@ fun RegisterScreen(
                                 placeholder = { Text("ton@email.com") },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                enabled = !viewModel.isLoading
+                                enabled = !viewModel.isLoading,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color(0xFF1C1B1F),
+                                    unfocusedTextColor = Color(0xFF1C1B1F)
+                                )
                             )
                         }
 
@@ -113,7 +121,11 @@ fun RegisterScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 visualTransformation = PasswordVisualTransformation(),
-                                enabled = !viewModel.isLoading
+                                enabled = !viewModel.isLoading,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color(0xFF1C1B1F),
+                                    unfocusedTextColor = Color(0xFF1C1B1F)
+                                )
                             )
                             // Barre de force dynamique liée au ViewModel
                             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {

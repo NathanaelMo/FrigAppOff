@@ -211,8 +211,13 @@ fun MainScreenContainer(onLogout: () -> Unit) {
             // ── Paramètres d'un frigo ─────────────────────────────────────────
             composable("fridge_settings/{fridgeId}") { backStackEntry ->
                 val fridgeId = backStackEntry.arguments?.getString("fridgeId") ?: ""
+                val context  = LocalContext.current
+                val currentUserId by produceState("") {
+                    value = (context.applicationContext as FrigApplication).tokenRepository.getUserId() ?: ""
+                }
                 FridgeSettingsScreen(
                     fridgeId        = fridgeId,
+                    currentUserId   = currentUserId,
                     onMembersClick  = { innerNavController.navigate("fridge_members/$fridgeId") },
                     onBackClick     = { innerNavController.popBackStack() },
                     onFridgeDeleted = {

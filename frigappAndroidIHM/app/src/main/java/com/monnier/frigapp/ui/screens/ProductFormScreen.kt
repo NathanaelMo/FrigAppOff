@@ -2,6 +2,8 @@ package com.monnier.frigapp.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -128,7 +130,12 @@ fun ProductFormScreen(
             }
         }
 
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
 
             // ── Nom du produit ────────────────────────────────────────────────
             FormCard {
@@ -138,7 +145,11 @@ fun ProductFormScreen(
                     value = productName, onValueChange = { productName = it },
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                     placeholder = { Text("Ex: Lait entier, Yaourt…") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2EAA84))
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF2EAA84),
+                        focusedTextColor = Color(0xFF1C1B1F),
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
                 )
                 if (!prefilledBarcode.isNullOrBlank())
                     Text("EAN : $prefilledBarcode", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
@@ -161,7 +172,11 @@ fun ProductFormScreen(
                             Icon(Icons.Default.DateRange, contentDescription = "Calendrier")
                         }
                     },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2EAA84))
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF2EAA84),
+                        focusedTextColor = Color(0xFF1C1B1F),
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
                 )
             }
 
@@ -198,7 +213,11 @@ fun ProductFormScreen(
                             readOnly = true, modifier = Modifier.fillMaxWidth().menuAnchor(),
                             shape = RoundedCornerShape(12.dp),
                             leadingIcon = { Icon(Icons.Default.Kitchen, null, tint = Color.Gray) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMenuExpanded) }
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMenuExpanded) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color(0xFF1C1B1F),
+                                unfocusedTextColor = Color(0xFF1C1B1F)
+                            )
                         )
                         ExposedDropdownMenu(expanded = isMenuExpanded, onDismissRequest = { isMenuExpanded = false }) {
                             fridges.forEach { fridge ->

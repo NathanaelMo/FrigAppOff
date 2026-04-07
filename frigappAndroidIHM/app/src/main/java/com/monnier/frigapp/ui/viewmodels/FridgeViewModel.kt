@@ -27,6 +27,7 @@ data class FridgeItemDisplay(
     val productId: String,
     val name: String,
     val brand: String?,
+    val imageUrl: String?,
     val quantity: Int,
     val daysRemaining: Int,
     val isUrgent: Boolean
@@ -142,6 +143,7 @@ class FridgeViewModel(application: Application) : AndroidViewModel(application) 
         productId     = product?.id?.toString() ?: "",
         name          = product?.name ?: "Produit inconnu",
         brand         = product?.brand,
+        imageUrl      = product?.imageUrl?.toString(),
         quantity      = quantity ?: 1,
         daysRemaining = daysUntilExpiry ?: 0,
         isUrgent      = urgent ?: false

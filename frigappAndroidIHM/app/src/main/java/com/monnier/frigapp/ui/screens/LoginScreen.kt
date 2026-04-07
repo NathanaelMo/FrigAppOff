@@ -75,7 +75,11 @@ fun LoginScreen(
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true,
                             enabled = !viewModel.isLoading,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color(0xFF1C1B1F),
+                                unfocusedTextColor = Color(0xFF1C1B1F)
+                            )
                         )
                     }
 
@@ -95,7 +99,11 @@ fun LoginScreen(
                                 TextButton(onClick = { viewModel.togglePasswordVisibility() }) {
                                     Text(if (viewModel.passwordVisible) "Cacher" else "Voir", color = Color(0xFF2EAA84))
                                 }
-                            }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color(0xFF1C1B1F),
+                                unfocusedTextColor = Color(0xFF1C1B1F)
+                            )
                         )
                     }
 
