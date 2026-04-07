@@ -33,18 +33,26 @@ import com.monnier.frigapp.ui.screens.ProductFormScreen
 import com.monnier.frigapp.ui.screens.ProfileScreen
 import com.monnier.frigapp.ui.screens.RegisterScreen
 import com.monnier.frigapp.ui.screens.ScanScreen
+import android.net.Uri
 import kotlinx.coroutines.launch
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 // ─── Helpers d'encodage URL ───────────────────────────────────────────────────
+//
+// On utilise android.net.Uri.encode() au lieu de URLEncoder/URLDecoder.
+// URLEncoder encode les espaces en "+" et les "%" en "%25".
+// NavController décode ensuite "%25" → "%" mais laisse "+" intact.
+// Quand notre code appelait ensuite URLDecoder, il voyait un "%" solitaire
+// (ex: "100%") et lançait une IllegalArgumentException → crash.
+//
+// Uri.encode() encode les espaces en "%20" et "%" en "%25".
+// NavController décode tout via Uri.getQueryParameter() → valeur déjà décodée dans le Bundle.
+// decodeArg() retourne donc la valeur telle quelle (décodage déjà fait par NavController).
 
 private fun String?.encodeArg(): String =
-    if (isNullOrBlank()) "" else URLEncoder.encode(this, StandardCharsets.UTF_8.toString())
+    if (isNullOrBlank()) "" else Uri.encode(this)
 
 private fun String?.decodeArg(): String =
-    if (isNullOrBlank()) "" else URLDecoder.decode(this, StandardCharsets.UTF_8.toString())
+    this ?: ""
 
 // ─── Navigation racine ────────────────────────────────────────────────────────
 

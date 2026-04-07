@@ -116,7 +116,7 @@ fun FridgeScreen(
                                         subtitle = if(product.daysRemaining < 0) "Expiré !" else "Dans ${product.daysRemaining} jours",
                                         date = "×${product.quantity}",
                                         imageUrl = product.imageUrl,
-                                        statusColor = if(product.daysRemaining < 0) Color.Black else Color(0xFFD03D2F),
+                                        statusColor = Color(0xFFD03D2F),
                                         isExpanded = expandedProductId == product.id,
                                         onClick = { expandedProductId = if (expandedProductId == product.id) null else product.id },
                                         onEdit = { onEditProductClick(product) },
