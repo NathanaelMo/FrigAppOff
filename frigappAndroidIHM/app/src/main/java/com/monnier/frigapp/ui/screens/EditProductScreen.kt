@@ -1,7 +1,11 @@
 package com.monnier.frigapp.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,10 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.monnier.frigapp.ui.viewmodels.EditProductState
 import com.monnier.frigapp.ui.viewmodels.EditProductViewModel
 
@@ -26,6 +32,8 @@ fun EditProductScreen(
     productId:      String  = "",
     itemName:       String  = "",
     itemBrand:      String? = null,
+    itemImageUrl:   String? = null,
+    initialExpiry:  String  = "",
     initialQty:     Int     = 1,
     onBackClick:    () -> Unit,
     onSaved:        () -> Unit,
@@ -36,8 +44,8 @@ fun EditProductScreen(
         viewModel.load(fridgeId, itemId, productId)
     }
 
-    var quantity       by remember(initialQty) { mutableIntStateOf(initialQty) }
-    var expirationDate by remember { mutableStateOf("") }
+    var quantity       by remember(initialQty)    { mutableIntStateOf(initialQty) }
+    var expirationDate by remember(initialExpiry) { mutableStateOf(initialExpiry) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val datePickerState = rememberDatePickerState()
@@ -88,31 +96,65 @@ fun EditProductScreen(
                 }
             }
 
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+
+                // ── Image du produit ──────────────────────────────────────────
+                if (!itemImageUrl.isNullOrBlank()) {
+                    Card(
+                        shape  = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(2.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AsyncImage(
+                            model            = itemImageUrl,
+                            contentDescription = itemName,
+                            contentScale     = ContentScale.Fit,
+                            modifier         = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                        )
+                    }
+                }
 
                 // ── Date de péremption ────────────────────────────────────────
                 FormCard {
                     Text("Date limite de consommation", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedTextField(
-                        value = expirationDate,
-                        onValueChange = { },
-                        readOnly = true, // Empêche la saisie clavier
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        placeholder = { Text("Sélectionner une date") },
-                        trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
+                    Box {
+                        OutlinedTextField(
+                            value = expirationDate,
+                            onValueChange = { },
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            placeholder = { Text("Sélectionner une date") },
+                            trailingIcon = {
                                 Icon(Icons.Default.DateRange, contentDescription = "Calendrier")
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF2EAA84),
-                        focusedTextColor = Color(0xFF1C1B1F),
-                        unfocusedTextColor = Color(0xFF1C1B1F)
-                    )
-                    )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor   = Color(0xFF2EAA84),
+                                focusedTextColor     = Color(0xFF1C1B1F),
+                                unfocusedTextColor   = Color(0xFF1C1B1F)
+                            )
+                        )
+                        // Overlay transparent qui rend tout le champ cliquable
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { showDatePicker = true }
+                        )
+                    }
                 }
 
                 // ── Quantité ──────────────────────────────────────────────────
@@ -149,7 +191,7 @@ fun EditProductScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // ── Actions ───────────────────────────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

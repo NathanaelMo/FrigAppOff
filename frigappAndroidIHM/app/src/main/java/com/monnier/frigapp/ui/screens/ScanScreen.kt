@@ -148,11 +148,18 @@ fun ScanScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when {
-                    // Permission accordée → flux caméra réel
-                    cameraPermissionGranted -> {
+                    // Permission accordée ET scan actif → flux caméra réel
+                    cameraPermissionGranted && scanState is ScanState.Scanning -> {
                         CameraPreview(
                             modifier           = Modifier.fillMaxSize(),
                             onBarcodeDetected  = { viewModel.onBarcodeDetected(it) }
+                        )
+                    }
+                    // Code-barres détecté : caméra arrêtée, chargement en cours
+                    cameraPermissionGranted && scanState is ScanState.Loading -> {
+                        CircularProgressIndicator(
+                            color    = Color(0xFF2EAA84),
+                            modifier = Modifier.size(56.dp)
                         )
                     }
                     // Permission refusée définitivement → message
@@ -205,18 +212,11 @@ fun ScanScreen(
                     color    = Color.Gray,
                     fontSize = 14.sp
                 )
-                is ScanState.Loading  -> {
-                    CircularProgressIndicator(
-                        color    = Color(0xFF2EAA84),
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Recherche du produit…",
-                        color    = Color(0xFF2EAA84),
-                        fontSize = 14.sp
-                    )
-                }
+                is ScanState.Loading  -> Text(
+                    "Recherche du produit…",
+                    color    = Color(0xFF2EAA84),
+                    fontSize = 14.sp
+                )
                 else -> { /* ProductFound / ProductNotFound → navigation déjà déclenchée */ }
             }
 

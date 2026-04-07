@@ -12,6 +12,7 @@ import com.monnier.frigapp.data.repository.FridgeResult
 import com.monnier.frigapp.data.repository.ItemResult
 import com.monnier.frigapp.generate.model.FridgeFull
 import com.monnier.frigapp.generate.model.FridgeItem
+import java.time.format.DateTimeFormatter
 import com.monnier.frigapp.network.ApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,7 @@ data class FridgeItemDisplay(
     val brand: String?,
     val imageUrl: String?,
     val quantity: Int,
+    val expiryDate: String,
     val daysRemaining: Int,
     val isUrgent: Boolean
 )
@@ -145,6 +147,7 @@ class FridgeViewModel(application: Application) : AndroidViewModel(application) 
         brand         = product?.brand,
         imageUrl      = product?.imageUrl?.toString(),
         quantity      = quantity ?: 1,
+        expiryDate    = expiryDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: "",
         daysRemaining = daysUntilExpiry ?: 0,
         isUrgent      = urgent ?: false
     )

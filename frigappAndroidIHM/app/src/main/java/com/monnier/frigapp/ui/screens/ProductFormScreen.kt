@@ -1,6 +1,8 @@
 package com.monnier.frigapp.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -160,24 +162,33 @@ fun ProductFormScreen(
                 Text("Date limite de consommation", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
-                    value = expirationDate,
-                    onValueChange = { },
-                    readOnly = true, // Empêche la saisie clavier
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    placeholder = { Text("Sélectionner une date") },
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
+                Box {
+                    OutlinedTextField(
+                        value = expirationDate,
+                        onValueChange = { },
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        placeholder = { Text("Sélectionner une date") },
+                        trailingIcon = {
                             Icon(Icons.Default.DateRange, contentDescription = "Calendrier")
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF2EAA84),
-                        focusedTextColor = Color(0xFF1C1B1F),
-                        unfocusedTextColor = Color(0xFF1C1B1F)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF2EAA84),
+                            focusedTextColor   = Color(0xFF1C1B1F),
+                            unfocusedTextColor = Color(0xFF1C1B1F)
+                        )
                     )
-                )
+                    // Overlay transparent qui rend tout le champ cliquable
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showDatePicker = true }
+                    )
+                }
             }
 
             // ── Quantité ──────────────────────────────────────────────────────

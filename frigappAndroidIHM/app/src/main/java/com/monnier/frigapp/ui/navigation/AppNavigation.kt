@@ -167,7 +167,9 @@ fun MainScreenContainer(onLogout: () -> Unit) {
                             "?name=${item.name.encodeArg()}" +
                             "&brand=${(item.brand ?: "").encodeArg()}" +
                             "&qty=${item.quantity}" +
-                            "&productId=${item.productId.encodeArg()}"
+                            "&productId=${item.productId.encodeArg()}" +
+                            "&imageUrl=${(item.imageUrl ?: "").encodeArg()}" +
+                            "&expiryDate=${item.expiryDate.encodeArg()}"
                         innerNavController.navigate(route)
                     }
                 )
@@ -175,32 +177,38 @@ fun MainScreenContainer(onLogout: () -> Unit) {
 
             // ── Édition d'un produit ──────────────────────────────────────────
             composable(
-                route     = "edit_product/{fridgeId}/{itemId}?name={name}&brand={brand}&qty={qty}&productId={productId}",
+                route     = "edit_product/{fridgeId}/{itemId}?name={name}&brand={brand}&qty={qty}&productId={productId}&imageUrl={imageUrl}&expiryDate={expiryDate}",
                 arguments = listOf(
-                    navArgument("fridgeId")  { type = NavType.StringType },
-                    navArgument("itemId")    { type = NavType.StringType },
-                    navArgument("name")      { type = NavType.StringType; defaultValue = "" },
-                    navArgument("brand")     { type = NavType.StringType; defaultValue = "" },
-                    navArgument("qty")       { type = NavType.StringType; defaultValue = "1" },
-                    navArgument("productId") { type = NavType.StringType; defaultValue = "" }
+                    navArgument("fridgeId")   { type = NavType.StringType },
+                    navArgument("itemId")     { type = NavType.StringType },
+                    navArgument("name")       { type = NavType.StringType; defaultValue = "" },
+                    navArgument("brand")      { type = NavType.StringType; defaultValue = "" },
+                    navArgument("qty")        { type = NavType.StringType; defaultValue = "1" },
+                    navArgument("productId")  { type = NavType.StringType; defaultValue = "" },
+                    navArgument("imageUrl")   { type = NavType.StringType; defaultValue = "" },
+                    navArgument("expiryDate") { type = NavType.StringType; defaultValue = "" }
                 )
             ) { backStackEntry ->
-                val fridgeId   = backStackEntry.arguments?.getString("fridgeId")  ?: ""
-                val itemId     = backStackEntry.arguments?.getString("itemId")    ?: ""
-                val itemName   = backStackEntry.arguments?.getString("name")?.decodeArg() ?: ""
-                val itemBrand  = backStackEntry.arguments?.getString("brand")?.decodeArg()?.takeIf { it.isNotBlank() }
-                val initialQty = backStackEntry.arguments?.getString("qty")?.toIntOrNull() ?: 1
-                val productId  = backStackEntry.arguments?.getString("productId")?.decodeArg() ?: ""
+                val fridgeId       = backStackEntry.arguments?.getString("fridgeId")   ?: ""
+                val itemId         = backStackEntry.arguments?.getString("itemId")     ?: ""
+                val itemName       = backStackEntry.arguments?.getString("name")?.decodeArg() ?: ""
+                val itemBrand      = backStackEntry.arguments?.getString("brand")?.decodeArg()?.takeIf { it.isNotBlank() }
+                val initialQty     = backStackEntry.arguments?.getString("qty")?.toIntOrNull() ?: 1
+                val productId      = backStackEntry.arguments?.getString("productId")?.decodeArg() ?: ""
+                val itemImageUrl   = backStackEntry.arguments?.getString("imageUrl")?.decodeArg()?.takeIf { it.isNotBlank() }
+                val initialExpiry  = backStackEntry.arguments?.getString("expiryDate")?.decodeArg() ?: ""
                 EditProductScreen(
-                    fridgeId    = fridgeId,
-                    itemId      = itemId,
-                    productId   = productId,
-                    itemName    = itemName,
-                    itemBrand   = itemBrand,
-                    initialQty  = initialQty,
-                    onBackClick = { innerNavController.popBackStack() },
-                    onSaved     = { innerNavController.popBackStack() },
-                    onDeleted   = {
+                    fridgeId       = fridgeId,
+                    itemId         = itemId,
+                    productId      = productId,
+                    itemName       = itemName,
+                    itemBrand      = itemBrand,
+                    itemImageUrl   = itemImageUrl,
+                    initialExpiry  = initialExpiry,
+                    initialQty     = initialQty,
+                    onBackClick  = { innerNavController.popBackStack() },
+                    onSaved      = { innerNavController.popBackStack() },
+                    onDeleted    = {
                         innerNavController.navigate("fridge_detail/$fridgeId") {
                             popUpTo("fridge_detail/$fridgeId") { inclusive = true }
                         }
@@ -357,10 +365,15 @@ fun BottomNavigationBar(navController: NavHostController) {
                     indicatorColor      = Color(0xFFE6F4EF)
                 ),
                 onClick = {
+                    // Si on re-clique sur l'onglet déjà actif (même en étant en profondeur),
+                    // on revient à la racine de cet onglet sans restaurer l'état précédent
+                    val alreadyInSection = isSelected && currentRoute != item.route
                     navController.navigate(item.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = !alreadyInSection
+                        }
                         launchSingleTop = true
-                        restoreState    = true
+                        restoreState    = !alreadyInSection
                     }
                 }
             )
