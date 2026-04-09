@@ -123,8 +123,18 @@ fun AppNavigation() {
 fun MainScreenContainer(onLogout: () -> Unit) {
     val innerNavController = rememberNavController()
 
+    // Frigo pré-sélectionné quand on arrive au scan depuis le "+" d'un frigo.
+    // Vide = pas de pré-sélection (on prend le dernier modifié).
+    // Remis à "" dès que l'utilisateur ouvre le scan via la barre de navigation.
+    var defaultFridgeIdForScan by remember { mutableStateOf("") }
+
     Scaffold(
-        bottomBar = { BottomNavigationBar(innerNavController) }
+        bottomBar = {
+            BottomNavigationBar(
+                navController  = innerNavController,
+                onScanTabClick = { defaultFridgeIdForScan = "" }
+            )
+        }
     ) { padding ->
         NavHost(
             navController    = innerNavController,
@@ -164,9 +174,9 @@ fun MainScreenContainer(onLogout: () -> Unit) {
                     onBackClick        = { innerNavController.popBackStack() },
                     onSettingsClick    = { innerNavController.navigate("fridge_settings/$fridgeId") },
                     onAddProductClick  = {
-                        // On passe le fridgeId en paramètre pour que le formulaire
-                        // pré-sélectionne automatiquement ce frigo après le scan.
-                        innerNavController.navigate("scan?defaultFridgeId=${fridgeId.encodeArg()}") {
+                        // Mémorise le frigo dans l'état partagé puis navigue vers l'onglet scan.
+                        defaultFridgeIdForScan = fridgeId
+                        innerNavController.navigate(BottomNavItem.Scan.route) {
                             popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
                             restoreState    = false
@@ -261,19 +271,13 @@ fun MainScreenContainer(onLogout: () -> Unit) {
             }
 
             // ── Scanner ───────────────────────────────────────────────────────
-            // defaultFridgeId est transmis depuis le "+" d'un frigo spécifique,
-            // ou vide quand l'utilisateur arrive par la barre de navigation.
-            composable(
-                route     = "scan?defaultFridgeId={defaultFridgeId}",
-                arguments = listOf(
-                    navArgument("defaultFridgeId") { type = NavType.StringType; defaultValue = "" }
-                )
-            ) { backStackEntry ->
-                val defaultFridgeId = backStackEntry.arguments?.getString("defaultFridgeId") ?: ""
+            // defaultFridgeIdForScan est un état partagé du MainScreenContainer.
+            // Il est valorisé quand on vient du "+" d'un frigo, vide sinon.
+            composable(BottomNavItem.Scan.route) {
                 ScanScreen(
                     onManualEntryClick = {
                         val route = "add_product_form" +
-                            "?defaultFridgeId=${defaultFridgeId.encodeArg()}"
+                            "?defaultFridgeId=${defaultFridgeIdForScan.encodeArg()}"
                         innerNavController.navigate(route)
                     },
                     onProductScanned   = { product ->
@@ -283,14 +287,13 @@ fun MainScreenContainer(onLogout: () -> Unit) {
                             "&brand=${product.brand.encodeArg()}" +
                             "&imageUrl=${product.imageUrl.encodeArg()}" +
                             "&productId=${product.productId.encodeArg()}" +
-                            "&defaultFridgeId=${defaultFridgeId.encodeArg()}"
+                            "&defaultFridgeId=${defaultFridgeIdForScan.encodeArg()}"
                         innerNavController.navigate(route)
                     },
                     onBarcodeNotFound  = { barcode ->
-                        // EAN inconnu → formulaire avec juste le code-barres
                         val route = "add_product_form" +
                             "?barcode=${barcode.encodeArg()}" +
-                            "&defaultFridgeId=${defaultFridgeId.encodeArg()}"
+                            "&defaultFridgeId=${defaultFridgeIdForScan.encodeArg()}"
                         innerNavController.navigate(route)
                     }
                 )
@@ -343,7 +346,7 @@ fun MainScreenContainer(onLogout: () -> Unit) {
 // ─── Barre de navigation inférieure ──────────────────────────────────────────
 
 @Composable
-fun BottomNavigationBar(navController: NavHostController) {
+fun BottomNavigationBar(navController: NavHostController, onScanTabClick: () -> Unit = {}) {
     val items = listOf(
         BottomNavItem.Fridges,
         BottomNavItem.Scan,
@@ -389,18 +392,26 @@ fun BottomNavigationBar(navController: NavHostController) {
                     indicatorColor      = Color(0xFFE6F4EF)
                 ),
                 onClick = {
-                    // Si on re-clique sur l'onglet déjà actif (même en étant en profondeur),
-                    // on revient à la racine de cet onglet sans restaurer l'état précédent.
-                    // Le tab Scan ne sauvegarde/restaure jamais son état : on repart toujours
-                    // sur l'écran de scan vierge (pas sur un formulaire de saisie à moitié rempli).
-                    val alreadyInSection = isSelected && currentRoute != item.route
-                    val isScanTab        = item == BottomNavItem.Scan
+                    val alreadyInSection  = isSelected && currentRoute != item.route
+                    val isScanTab         = item == BottomNavItem.Scan
+                    // On est actuellement dans la zone scan (écran scan ou formulaire d'ajout)
+                    val currentlyInScan   = currentRoute == BottomNavItem.Scan.route
+                            || currentRoute?.startsWith("add_product_form") == true
+
+                    if (isScanTab) onScanTabClick()
+
+                    // La zone scan ne sauvegarde/restaure jamais l'état :
+                    //  - quand on ARRIVE sur scan (isScanTab)
+                    //  - quand on PART de scan vers un autre onglet (currentlyInScan)
+                    // Sans ça, launchSingleTop empêche le recompose quand fridge_list
+                    // est déjà au sommet de la pile après le popUpTo.
+                    val useSaveRestore = !isScanTab && !currentlyInScan && !alreadyInSection
                     navController.navigate(item.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = if (isScanTab) false else !alreadyInSection
+                            saveState = useSaveRestore
                         }
                         launchSingleTop = true
-                        restoreState    = if (isScanTab) false else !alreadyInSection
+                        restoreState    = useSaveRestore
                     }
                 }
             )
