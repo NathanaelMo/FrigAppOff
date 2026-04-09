@@ -78,6 +78,10 @@ public class ItemsRepository {
             DELETE FROM fridge_items WHERE id = :itemId
             """;
 
+    private static final String TOUCH_FRIDGE = """
+            UPDATE fridges SET updated_at = now() WHERE id = :fridgeId
+            """;
+
     private static final String IS_MEMBER = """
             SELECT EXISTS(
                 SELECT 1 FROM fridge_members
@@ -133,6 +137,12 @@ public class ItemsRepository {
     public void delete(UUID itemId) {
         jdbc.sql(DELETE)
                 .param("itemId", itemId)
+                .update();
+    }
+
+    public void touchFridge(UUID fridgeId) {
+        jdbc.sql(TOUCH_FRIDGE)
+                .param("fridgeId", fridgeId)
                 .update();
     }
 

@@ -54,13 +54,15 @@ public class ItemsService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produit introuvable");
         }
 
-        return itemsRepository.save(
+        FridgeItem saved = itemsRepository.save(
                 fridgeId,
                 request.getProductId(),
                 userId,
                 request.getQuantity(),
                 request.getExpiryDate()
         );
+        itemsRepository.touchFridge(fridgeId);
+        return saved;
     }
 
     // ── Modifier ──────────────────────────────────────────────────────────────
@@ -78,7 +80,9 @@ public class ItemsService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item introuvable dans ce frigo");
         }
 
-        return itemsRepository.update(itemId, request.getQuantity(), request.getExpiryDate());
+        FridgeItem updated = itemsRepository.update(itemId, request.getQuantity(), request.getExpiryDate());
+        itemsRepository.touchFridge(fridgeId);
+        return updated;
     }
 
     // ── Supprimer ─────────────────────────────────────────────────────────────
@@ -97,6 +101,7 @@ public class ItemsService {
         }
 
         itemsRepository.delete(itemId);
+        itemsRepository.touchFridge(fridgeId);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

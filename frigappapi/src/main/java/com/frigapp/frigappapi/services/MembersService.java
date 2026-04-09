@@ -43,6 +43,11 @@ public class MembersService {
         log.info("Service : Invitation de '{}' dans le frigo {} par l'user {}",
                 request.getEmail(), fridgeId, userId);
 
+        if (!membersRepository.isOwner(fridgeId, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Seul le propriétaire peut inviter des membres");
+        }
+
         try {
             // inviteByEmail retourne Optional.empty() si l'email est inconnu
             return membersRepository.inviteByEmail(fridgeId, request.getEmail())

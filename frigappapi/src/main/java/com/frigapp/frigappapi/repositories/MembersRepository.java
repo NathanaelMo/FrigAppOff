@@ -49,7 +49,6 @@ public class MembersRepository {
     private static final String INSERT_MEMBER = """
             INSERT INTO fridge_members (fridge_id, user_id, role)
             VALUES (:fridgeId, :userId, 'collaborator')
-            RETURNING id
             """;
 
     private static final String DELETE_COLLABORATOR = """
