@@ -122,12 +122,6 @@ fun ScanScreen(
                     .fillMaxWidth()
                     .padding(top = 40.dp, start = 16.dp, end = 16.dp, bottom = 24.dp)
             ) {
-                IconButton(
-                    onClick  = onManualEntryClick,
-                    modifier = Modifier.align(Alignment.CenterStart)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.Gray)
-                }
                 Text(
                     text       = "Scanner un produit",
                     color      = Color.White,

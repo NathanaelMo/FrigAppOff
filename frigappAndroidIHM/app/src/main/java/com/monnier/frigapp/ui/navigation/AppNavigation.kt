@@ -164,10 +164,12 @@ fun MainScreenContainer(onLogout: () -> Unit) {
                     onBackClick        = { innerNavController.popBackStack() },
                     onSettingsClick    = { innerNavController.navigate("fridge_settings/$fridgeId") },
                     onAddProductClick  = {
-                        innerNavController.navigate(BottomNavItem.Scan.route) {
+                        // On passe le fridgeId en paramètre pour que le formulaire
+                        // pré-sélectionne automatiquement ce frigo après le scan.
+                        innerNavController.navigate("scan?defaultFridgeId=${fridgeId.encodeArg()}") {
                             popUpTo(innerNavController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
-                            restoreState    = true
+                            restoreState    = false
                         }
                     },
                     onEditProductClick = { item ->
@@ -259,12 +261,20 @@ fun MainScreenContainer(onLogout: () -> Unit) {
             }
 
             // ── Scanner ───────────────────────────────────────────────────────
-            // FIX 1 : les callbacks de navigation transmettent les données produit
-            // vers le formulaire via des query params encodés en URL
-            composable(BottomNavItem.Scan.route) {
+            // defaultFridgeId est transmis depuis le "+" d'un frigo spécifique,
+            // ou vide quand l'utilisateur arrive par la barre de navigation.
+            composable(
+                route     = "scan?defaultFridgeId={defaultFridgeId}",
+                arguments = listOf(
+                    navArgument("defaultFridgeId") { type = NavType.StringType; defaultValue = "" }
+                )
+            ) { backStackEntry ->
+                val defaultFridgeId = backStackEntry.arguments?.getString("defaultFridgeId") ?: ""
                 ScanScreen(
                     onManualEntryClick = {
-                        innerNavController.navigate("add_product_form")
+                        val route = "add_product_form" +
+                            "?defaultFridgeId=${defaultFridgeId.encodeArg()}"
+                        innerNavController.navigate(route)
                     },
                     onProductScanned   = { product ->
                         val route = "add_product_form" +
@@ -272,43 +282,49 @@ fun MainScreenContainer(onLogout: () -> Unit) {
                             "&name=${product.name.encodeArg()}" +
                             "&brand=${product.brand.encodeArg()}" +
                             "&imageUrl=${product.imageUrl.encodeArg()}" +
-                            "&productId=${product.productId.encodeArg()}"
+                            "&productId=${product.productId.encodeArg()}" +
+                            "&defaultFridgeId=${defaultFridgeId.encodeArg()}"
                         innerNavController.navigate(route)
                     },
                     onBarcodeNotFound  = { barcode ->
                         // EAN inconnu → formulaire avec juste le code-barres
-                        val route = "add_product_form?barcode=${barcode.encodeArg()}"
+                        val route = "add_product_form" +
+                            "?barcode=${barcode.encodeArg()}" +
+                            "&defaultFridgeId=${defaultFridgeId.encodeArg()}"
                         innerNavController.navigate(route)
                     }
                 )
             }
 
             // ── Formulaire ajout produit ───────────────────────────────────────
-            // Reçoit les données optionnelles du scan via query params
+            // Reçoit les données optionnelles du scan + le frigo pré-sélectionné via query params
             composable(
-                route     = "add_product_form?barcode={barcode}&name={name}&brand={brand}&imageUrl={imageUrl}&productId={productId}",
+                route     = "add_product_form?barcode={barcode}&name={name}&brand={brand}&imageUrl={imageUrl}&productId={productId}&defaultFridgeId={defaultFridgeId}",
                 arguments = listOf(
-                    navArgument("barcode")   { type = NavType.StringType; defaultValue = "" },
-                    navArgument("name")      { type = NavType.StringType; defaultValue = "" },
-                    navArgument("brand")     { type = NavType.StringType; defaultValue = "" },
-                    navArgument("imageUrl")  { type = NavType.StringType; defaultValue = "" },
-                    navArgument("productId") { type = NavType.StringType; defaultValue = "" }
+                    navArgument("barcode")         { type = NavType.StringType; defaultValue = "" },
+                    navArgument("name")            { type = NavType.StringType; defaultValue = "" },
+                    navArgument("brand")           { type = NavType.StringType; defaultValue = "" },
+                    navArgument("imageUrl")        { type = NavType.StringType; defaultValue = "" },
+                    navArgument("productId")       { type = NavType.StringType; defaultValue = "" },
+                    navArgument("defaultFridgeId") { type = NavType.StringType; defaultValue = "" }
                 )
             ) { backStackEntry ->
-                val barcode   = backStackEntry.arguments?.getString("barcode")?.decodeArg()
-                val name      = backStackEntry.arguments?.getString("name")?.decodeArg()
-                val brand     = backStackEntry.arguments?.getString("brand")?.decodeArg()
-                val imageUrl  = backStackEntry.arguments?.getString("imageUrl")?.decodeArg()
-                val productId = backStackEntry.arguments?.getString("productId")?.decodeArg()
+                val barcode         = backStackEntry.arguments?.getString("barcode")?.decodeArg()
+                val name            = backStackEntry.arguments?.getString("name")?.decodeArg()
+                val brand           = backStackEntry.arguments?.getString("brand")?.decodeArg()
+                val imageUrl        = backStackEntry.arguments?.getString("imageUrl")?.decodeArg()
+                val productId       = backStackEntry.arguments?.getString("productId")?.decodeArg()
+                val defaultFridgeId = backStackEntry.arguments?.getString("defaultFridgeId")?.decodeArg()
 
                 ProductFormScreen(
-                    prefilledBarcode  = barcode?.takeIf   { it.isNotBlank() },
-                    prefilledName     = name?.takeIf      { it.isNotBlank() },
-                    prefilledBrand    = brand?.takeIf     { it.isNotBlank() },
-                    prefilledImageUrl = imageUrl?.takeIf  { it.isNotBlank() },
-                    prefilledProductId = productId?.takeIf { it.isNotBlank() },
-                    onBackClick       = { innerNavController.popBackStack() },
-                    onAddSuccess      = {
+                    prefilledBarcode   = barcode?.takeIf         { it.isNotBlank() },
+                    prefilledName      = name?.takeIf            { it.isNotBlank() },
+                    prefilledBrand     = brand?.takeIf           { it.isNotBlank() },
+                    prefilledImageUrl  = imageUrl?.takeIf        { it.isNotBlank() },
+                    prefilledProductId = productId?.takeIf       { it.isNotBlank() },
+                    prefilledFridgeId  = defaultFridgeId?.takeIf { it.isNotBlank() },
+                    onBackClick        = { innerNavController.popBackStack() },
+                    onAddSuccess       = {
                         innerNavController.navigate(BottomNavItem.Fridges.route) {
                             popUpTo(BottomNavItem.Fridges.route) { inclusive = false }
                         }
@@ -374,14 +390,17 @@ fun BottomNavigationBar(navController: NavHostController) {
                 ),
                 onClick = {
                     // Si on re-clique sur l'onglet déjà actif (même en étant en profondeur),
-                    // on revient à la racine de cet onglet sans restaurer l'état précédent
+                    // on revient à la racine de cet onglet sans restaurer l'état précédent.
+                    // Le tab Scan ne sauvegarde/restaure jamais son état : on repart toujours
+                    // sur l'écran de scan vierge (pas sur un formulaire de saisie à moitié rempli).
                     val alreadyInSection = isSelected && currentRoute != item.route
+                    val isScanTab        = item == BottomNavItem.Scan
                     navController.navigate(item.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = !alreadyInSection
+                            saveState = if (isScanTab) false else !alreadyInSection
                         }
                         launchSingleTop = true
-                        restoreState    = !alreadyInSection
+                        restoreState    = if (isScanTab) false else !alreadyInSection
                     }
                 }
             )

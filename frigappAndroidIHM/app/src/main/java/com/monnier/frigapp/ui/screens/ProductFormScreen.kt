@@ -34,6 +34,7 @@ fun ProductFormScreen(
     prefilledBarcode:   String? = null,
     prefilledImageUrl:  String? = null,
     prefilledProductId: String? = null,
+    prefilledFridgeId:  String? = null,
     onBackClick:   () -> Unit,
     onAddSuccess:  () -> Unit,
     viewModel: ProductFormViewModel = viewModel()
@@ -56,11 +57,18 @@ fun ProductFormScreen(
     var selectedFridgeId   by remember { mutableStateOf("") }
     var selectedFridgeName by remember { mutableStateOf("") }
 
-    // Initialise la sélection dès que la liste est chargée
+    // Initialise la sélection dès que la liste est chargée.
+    // Si un frigo est pré-sélectionné (venant du "+" d'un frigo), on le cherche dans la liste.
+    // Sinon on prend le premier (= celui modifié le plus récemment).
     LaunchedEffect(fridges) {
         if (fridges.isNotEmpty() && selectedFridgeId.isEmpty()) {
-            selectedFridgeId   = fridges.first().id?.toString() ?: ""
-            selectedFridgeName = fridges.first().name ?: ""
+            val target = if (!prefilledFridgeId.isNullOrBlank()) {
+                fridges.find { it.id?.toString() == prefilledFridgeId } ?: fridges.first()
+            } else {
+                fridges.first()
+            }
+            selectedFridgeId   = target.id?.toString() ?: ""
+            selectedFridgeName = target.name ?: ""
         }
     }
 

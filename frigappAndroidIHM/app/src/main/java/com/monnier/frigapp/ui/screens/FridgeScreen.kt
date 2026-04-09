@@ -1,6 +1,9 @@
 package com.monnier.frigapp.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,9 +20,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,14 +47,35 @@ fun FridgeScreen(
         viewModel.fetchFridgeData(fridgeId)
     }
 
-    val products by viewModel.products.collectAsState()
+    val products  by viewModel.products.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    // Séparation automatique des produits
-    val priorityProducts = products.filter { it.isUrgent }
-    val otherProducts    = products.filter { !it.isUrgent }
+    // ─── Recherche ────────────────────────────────────────────────────────────
+    var searchQuery    by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    val searchFocusRequester = remember { FocusRequester() }
 
+    // Ouvre le clavier automatiquement quand la barre de recherche apparaît
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) searchFocusRequester.requestFocus()
+    }
+
+    // Réinitialise l'item développé à chaque changement de query
     var expandedProductId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(searchQuery) { expandedProductId = null }
+
+    // Filtre en temps réel (nom ou marque, insensible à la casse)
+    val filteredProducts = remember(products, searchQuery) {
+        if (searchQuery.isBlank()) products
+        else products.filter { p ->
+            p.name.contains(searchQuery, ignoreCase = true) ||
+            p.brand?.contains(searchQuery, ignoreCase = true) == true
+        }
+    }
+
+    val priorityProducts = filteredProducts.filter { it.isUrgent }
+    val otherProducts    = filteredProducts.filter { !it.isUrgent }
+
     var productToDelete by remember { mutableStateOf<FridgeItemDisplay?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -73,8 +101,21 @@ fun FridgeScreen(
                             }
                             Text(viewModel.fridgeName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         }
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(Icons.Default.Settings, "Paramètres", tint = Color.White)
+                        Row {
+                            // Loupe / fermeture recherche
+                            IconButton(onClick = {
+                                isSearchActive = !isSearchActive
+                                if (!isSearchActive) searchQuery = ""
+                            }) {
+                                Icon(
+                                    if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
+                                    contentDescription = if (isSearchActive) "Fermer la recherche" else "Rechercher",
+                                    tint = Color.White
+                                )
+                            }
+                            IconButton(onClick = onSettingsClick) {
+                                Icon(Icons.Default.Settings, "Paramètres", tint = Color.White)
+                            }
                         }
                     }
 
@@ -84,12 +125,47 @@ fun FridgeScreen(
                         Surface(color = Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp)) {
                             Text("${products.size} produits", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color.White, fontSize = 12.sp)
                         }
-                        if (priorityProducts.isNotEmpty()) {
+                        if (priorityProducts.isNotEmpty() && searchQuery.isBlank()) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(color = Color(0xFFD03D2F), shape = RoundedCornerShape(12.dp)) {
                                 Text("${priorityProducts.size} expirent bientôt", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = Color.White, fontSize = 12.sp)
                             }
                         }
+                    }
+
+                    // ── Barre de recherche (animée) ───────────────────────────
+                    AnimatedVisibility(
+                        visible = isSearchActive,
+                        enter   = expandVertically(),
+                        exit    = shrinkVertically()
+                    ) {
+                        OutlinedTextField(
+                            value         = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder   = { Text("Rechercher un produit…", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp) },
+                            singleLine    = true,
+                            leadingIcon   = { Icon(Icons.Default.Search, null, tint = Color.White.copy(alpha = 0.8f)) },
+                            trailingIcon  = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, "Effacer", tint = Color.White)
+                                    }
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            shape  = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor      = Color.White,
+                                unfocusedTextColor    = Color.White,
+                                cursorColor           = Color.White,
+                                focusedBorderColor    = Color.White.copy(alpha = 0.6f),
+                                unfocusedBorderColor  = Color.White.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp)
+                                .focusRequester(searchFocusRequester)
+                        )
                     }
                 }
             }
@@ -105,6 +181,34 @@ fun FridgeScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Message aucun résultat de recherche
+                    if (searchQuery.isNotBlank() && filteredProducts.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxWidth()
+                                    .padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint     = Color.LightGray,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        "Aucun produit pour « $searchQuery »",
+                                        color    = Color.Gray,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // SECTION PRIORITÉ
                     if (priorityProducts.isNotEmpty()) {
                         item { SectionHeader(Icons.Default.WarningAmber, "À CONSOMMER EN PRIORITÉ", Color(0xFFD03D2F)) }
