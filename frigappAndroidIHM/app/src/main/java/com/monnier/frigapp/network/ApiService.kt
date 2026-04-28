@@ -67,10 +67,15 @@ object ApiService {
 
     // ─── Client Retrofit (généré par OpenAPI) ────────────────────────────────
 
-    private val apiClient = ApiClient(
-        baseUrl = BASE_URL,
-        okHttpClientBuilder = okHttpClient.newBuilder()
-    )
+    // lazy : doit s'initialiser APRÈS setup() pour que tokenAuthenticator soit non-null
+    // dans okHttpClient. Un apiClient non-lazy forcerait l'init de okHttpClient avant
+    // que setup() soit appelé, ce qui exclut le TokenAuthenticator du client HTTP.
+    private val apiClient by lazy {
+        ApiClient(
+            baseUrl = BASE_URL,
+            okHttpClientBuilder = okHttpClient.newBuilder()
+        )
+    }
 
     // ─── Services exposés ────────────────────────────────────────────────────
 
